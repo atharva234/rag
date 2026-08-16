@@ -68,7 +68,7 @@ def get_bm25():
             count = client.count(QDRANT_COLLECTION).count
         except Exception:
             return None, [], {}
-        records, _ = client.scroll(QDRANT_COLLECTION, limit=min(count, 50000), with_payload=True, with_vectors=False)
+        records, _ = client.scroll(QDRANT_COLLECTION, limit=max(1, min(count, 50000)), with_payload=True, with_vectors=False)
         _bm25_docs = [(r.id, r.payload.get("text", "")) for r in records]
         _bm25_lookup = {r.id: r.payload.get("text", "") for r in records}
         tokenized = [doc.lower().split() for _, doc in _bm25_docs]
