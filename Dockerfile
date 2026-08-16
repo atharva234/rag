@@ -4,6 +4,7 @@ RUN useradd -m -u 1000 user
 USER user
 ENV HOME=/home/user PATH=/home/user/.local/bin:$PATH
 WORKDIR $HOME/app
+ENV PYTHONUNBUFFERED=1
 
 COPY --chown=user requirements.txt .
 # Install CPU-only PyTorch first — the default pip install pulls in the full
@@ -15,4 +16,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY --chown=user . .
 
 EXPOSE 7860
-CMD ["sh", "-c", "[ -d qdrant_data ] || python ingest.py && python app.py"]
+CMD ["sh", "-c", "[ -f qdrant_data/.ingest_complete ] || (rm -rf qdrant_data && python ingest.py) && python app.py"]

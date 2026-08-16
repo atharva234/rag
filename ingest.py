@@ -29,7 +29,8 @@ def ingest():
     )
 
     points = []
-    all_embeddings = []
+    embedding_sum = None
+    embedding_count = 0
     point_id = 0
     passage_count = 0
 
@@ -99,7 +100,9 @@ def ingest():
                 embs = model.encode(
                     [f"passage: {t}" for t in texts], normalize_embeddings=True, batch_size=64,
                 )
-                all_embeddings.extend(embs)
+                batch_sum = embs.sum(axis=0)
+                embedding_sum = batch_sum if embedding_sum is None else embedding_sum + batch_sum
+                embedding_count += len(embs)
                 batch_points = [
                     PointStruct(id=point_id + k, vector=embs[k].tolist(), payload=metas[k])
                     for k in range(len(texts))
@@ -117,7 +120,9 @@ def ingest():
         texts = [p[0] for p in points]
         metas = [p[1] for p in points]
         embs = model.encode([f"passage: {t}" for t in texts], normalize_embeddings=True, batch_size=64)
-        all_embeddings.extend(embs)
+        batch_sum = embs.sum(axis=0)
+        embedding_sum = batch_sum if embedding_sum is None else embedding_sum + batch_sum
+        embedding_count += len(embs)
         batch_points = [
             PointStruct(id=point_id + k, vector=embs[k].tolist(), payload=metas[k])
             for k in range(len(texts))
@@ -127,12 +132,20 @@ def ingest():
 
     elapsed = time.perf_counter() - t0
 
-    # Save corpus centroid for off-topic detection
-    centroid = np.mean(all_embeddings, axis=0)
-    np.save("corpus_centroid.npy", centroid)
+    # Save corpus centroid for off-topic detection (running sum/count, not a
+    # giant list of every embedding — avoids holding 100k+ vectors in RAM)
+    if embedding_count > 0:
+        centroid = embedding_sum / embedding_count
+        np.save("corpus_centroid.npy", centroid)
+        print(f"Corpus centroid saved to corpus_centroid.npy")
+
+    # Write a completion marker. The Dockerfile checks for this file (not just
+    # the qdrant_data/ directory) before deciding ingestion already ran, so a
+    # partial/OOM-killed run doesn't get silently treated as "done" on restart.
+    with open("qdrant_data/.ingest_complete", "w") as f:
+        f.write(f"{point_id} chunks, {passage_count} passages, {elapsed:.1f}s\n")
 
     print(f"\nDone. {point_id} chunks indexed from {passage_count} passages in {elapsed:.1f}s")
-    print(f"Corpus centroid saved to corpus_centroid.npy")
 
 
 if __name__ == "__main__":
