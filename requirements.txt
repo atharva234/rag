@@ -1,0 +1,12 @@
+gradio>=4.0
+groq
+sentence-transformers
+qdrant-client
+datasets
+huggingface_hub
+pydantic
+numpy
+tenacity
+python-dotenv
+requests
+rank_bm25
