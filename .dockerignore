@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+qdrant_data/
+corpus_centroid.npy
+*.wav
+*.mp3
+.git/
